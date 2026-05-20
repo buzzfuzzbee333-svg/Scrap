@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only smoke + integration test of LAST SCRAP Expo web preview. All required testIDs render, navigation menu->game->pause->menu works, RAF game loop is ticking (kills counter increments, zombies spawn), wave banner displays then auto-dismisses. No red-box / runtime errors. Two harmless RN web deprecation warnings observed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "Multiple (uses pointerEvents prop)", "issue": "RN-web warning: 'props.pointerEvents is deprecated. Use style.pointerEvents.' Non-blocking but should be migrated. Seen on app/game.tsx (SafeAreaView, joystickWrap, damageFlash) and likely Arena/Overlays."},
+      {"component": "Styling layer (shadow* props)", "issue": "RN-web warning: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Non-blocking; comes from HUD/Arena/Overlays styles."}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Optional / low priority) Replace `pointerEvents=\"box-none\"` / `pointerEvents=\"none\"` props with `style={{ pointerEvents: 'box-none' }}` to silence RN-web deprecation warnings.",
+    "(Optional / low priority) Replace deprecated `shadow*` style props with `boxShadow` for web compatibility."
+  ],
+  "critical_code_review_comments": [
+    "game.tsx correctly uses RAF with cleanup on unmount and clamps dt to 0.05s; good frame-rate safety.",
+    "saveBestIfNeeded guarded by gameOverSavedRef — prevents storage thrash on gameover.",
+    "WaveBanner uses setTimeout(1100) without ref cleanup; if user aborts within 1.1s, the setTimeout still fires after unmount (sets state on unmounted component). Minor – React tolerates with warning only in strict mode.",
+    "All interactive components have testID attributes; mobile touch targets (start-btn 48px+ tall, pause-btn ~44px, joystick large) meet 44pt minimum."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "App is at https://scrap-integration.preview.emergentagent.com (from frontend/.env). Main menu testID=main-menu; clicking start-btn navigates to /game; game-screen renders Arena + HUD + Joystick + Pause. wave-banner is only visible for ~1.1s after wave start—poll within 1s of navigation to catch it. Engine is RAF-based; wait ~3-4s after entering /game to see KILLS counter rise (confirms zombies spawn + auto-fire works). Upgrade shop and gameover were NOT exercised (per request, only if reachable); all corresponding testIDs are defined in source.",
+  "rca_of_issue": "n/a — no bugs found in this iteration."
+}
