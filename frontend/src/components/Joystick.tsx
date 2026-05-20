@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import { View, StyleSheet, PanResponder, GestureResponderEvent, PanResponderGestureState } from "react-native";
 
 type Props = {
@@ -10,26 +10,14 @@ type Props = {
 export default function Joystick({ size = 130, onMove, testID }: Props) {
   const radius = size / 2;
   const knobSize = size * 0.42;
-  const knobRef = useRef<View>(null);
-  const offsetRef = useRef({ x: 0, y: 0 });
-
-  const updateKnob = (dx: number, dy: number) => {
-    const k = knobRef.current;
-    if (!k) return;
-    k.setNativeProps({
-      style: {
-        transform: [{ translateX: dx }, { translateY: dy }],
-      },
-    });
-  };
+  const [knob, setKnob] = useState({ dx: 0, dy: 0 });
 
   const responder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (_e: GestureResponderEvent, gs: PanResponderGestureState) => {
-        offsetRef.current = { x: 0, y: 0 };
-        updateKnob(0, 0);
+      onPanResponderGrant: (_e: GestureResponderEvent, _gs: PanResponderGestureState) => {
+        setKnob({ dx: 0, dy: 0 });
         onMove(0, 0);
       },
       onPanResponderMove: (_e, gs) => {
@@ -41,17 +29,17 @@ export default function Joystick({ size = 130, onMove, testID }: Props) {
           dx = (dx / len) * max;
           dy = (dy / len) * max;
         }
-        updateKnob(dx, dy);
+        setKnob({ dx, dy });
         const nx = dx / max;
         const ny = dy / max;
         onMove(nx, ny);
       },
       onPanResponderRelease: () => {
-        updateKnob(0, 0);
+        setKnob({ dx: 0, dy: 0 });
         onMove(0, 0);
       },
       onPanResponderTerminate: () => {
-        updateKnob(0, 0);
+        setKnob({ dx: 0, dy: 0 });
         onMove(0, 0);
       },
     }),
@@ -66,11 +54,9 @@ export default function Joystick({ size = 130, onMove, testID }: Props) {
       ]}
       {...responder.panHandlers}
     >
-      {/* tick marks */}
       <View style={[styles.cross, { width: size * 0.7, height: 1 }]} />
       <View style={[styles.cross, { width: 1, height: size * 0.7 }]} />
       <View
-        ref={knobRef}
         pointerEvents="none"
         style={[
           styles.knob,
@@ -78,6 +64,7 @@ export default function Joystick({ size = 130, onMove, testID }: Props) {
             width: knobSize,
             height: knobSize,
             borderRadius: knobSize / 2,
+            transform: [{ translateX: knob.dx }, { translateY: knob.dy }],
           },
         ]}
       />

@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -27,21 +27,10 @@ export default function FireButton({
   maxAmmo,
   testID,
 }: Props) {
-  const innerRef = useRef<View>(null);
+  const [pressed, setPressed] = useState(false);
   const holdTimeoutRef = useRef<any>(null);
   const holdingRef = useRef(false);
-  const downAtRef = useRef(0);
-  const movedRef = useRef(false);
   const HOLD_MS = 160;
-
-  const setPressed = (down: boolean) => {
-    innerRef.current?.setNativeProps({
-      style: {
-        backgroundColor: down ? "#D35400" : "rgba(211,84,0,0.18)",
-        borderColor: down ? "#F39C12" : "#D35400",
-      },
-    });
-  };
 
   const clearHoldTimer = () => {
     if (holdTimeoutRef.current) {
@@ -55,8 +44,6 @@ export default function FireButton({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (_e: GestureResponderEvent) => {
-        downAtRef.current = Date.now();
-        movedRef.current = false;
         setPressed(true);
         // Fire one shot immediately on tap-start for snappy feel
         onPress();
@@ -67,9 +54,7 @@ export default function FireButton({
           onHoldStart();
         }, HOLD_MS);
       },
-      onPanResponderMove: (_e, gs) => {
-        if (Math.hypot(gs.dx, gs.dy) > 14) movedRef.current = true;
-      },
+      onPanResponderMove: () => {},
       onPanResponderRelease: () => {
         clearHoldTimer();
         setPressed(false);
@@ -94,7 +79,6 @@ export default function FireButton({
 
   return (
     <View testID={testID ?? "fire-button"} style={{ alignItems: "center" }}>
-      {/* Ammo ring/bar above */}
       <View style={styles.ammoRow}>
         <MaterialCommunityIcons
           name="ammunition"
@@ -128,20 +112,21 @@ export default function FireButton({
         ]}
       >
         <View
-          ref={innerRef}
           style={[
             styles.inner,
             {
               width: size * 0.78,
               height: size * 0.78,
               borderRadius: (size * 0.78) / 2,
+              backgroundColor: pressed ? "#D35400" : "rgba(211,84,0,0.18)",
+              borderColor: pressed ? "#F39C12" : "#D35400",
             },
           ]}
         >
           <MaterialCommunityIcons
             name="pistol"
             size={size * 0.36}
-            color={empty ? "#FF2A2A" : "#EAEAEA"}
+            color={empty ? "#FF2A2A" : pressed ? "#080808" : "#EAEAEA"}
           />
         </View>
       </View>
@@ -158,9 +143,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   inner: {
-    backgroundColor: "rgba(211,84,0,0.18)",
     borderWidth: 1,
-    borderColor: "#D35400",
     alignItems: "center",
     justifyContent: "center",
   },
