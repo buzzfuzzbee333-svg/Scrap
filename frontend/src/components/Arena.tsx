@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React from "react";
 import { View, StyleSheet } from "react-native";
 import { GameState } from "../game/engine";
 
@@ -342,4 +342,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default memo(Arena);
+export default Arena;

@@ -93,7 +93,13 @@ export default function GameScreen() {
       const dt = Math.min(0.05, (now - lastFrameRef.current) / 1000);
       lastFrameRef.current = now;
 
-      tick(s, dt);
+      try {
+        tick(s, dt);
+      } catch (err) {
+        // Surface the error instead of silently breaking the loop
+        // eslint-disable-next-line no-console
+        console.error("Game tick error:", err);
+      }
 
       // When wave is cleared, advance to shop after a tiny pause
       if (s.status === "waveclear") {
@@ -203,10 +209,9 @@ export default function GameScreen() {
 
         {/* Joystick bottom-left */}
         <View
-          pointerEvents="box-none"
           style={[
             styles.joystickWrap,
-            { bottom: insets.bottom + 24, left: 24 },
+            { bottom: insets.bottom + 24, left: 24, pointerEvents: "box-none" } as any,
           ]}
         >
           <Joystick onMove={onJoystickMove} />
@@ -215,10 +220,9 @@ export default function GameScreen() {
         {/* Fire button bottom-right */}
         {s && (
           <View
-            pointerEvents="box-none"
             style={[
               styles.fireWrap,
-              { bottom: insets.bottom + 24, right: 24 },
+              { bottom: insets.bottom + 24, right: 24, pointerEvents: "box-none" } as any,
             ]}
           >
             <FireButton
