@@ -1,0 +1,134 @@
+{
+  "theme": "Dark",
+  "archetype": "Gritty Tactical / Post-Apocalyptic",
+  "global_rules": [
+    "No purple or violet colors anywhere.",
+    "No soft rounded corners (border-radius: 0 or extremely minimal like 2px).",
+    "All interactive UI elements MUST have a data-testid attribute.",
+    "UI feels like a tactical military interface: monospaced numbers, corner brackets, harsh lines."
+  ],
+  "colors": {
+    "background": {
+      "void": "#080808",
+      "wasteland_floor": "#141210",
+      "crater_dark": "#0A0908"
+    },
+    "entities": {
+      "player": "#FFFFFF",
+      "rig_core": "#00FFFF",
+      "rig_shield": "rgba(0, 255, 255, 0.2)",
+      "zombie_body": "#39FF14",
+      "zombie_outline": "#113300",
+      "scrap_pickup": "#F39C12"
+    },
+    "ui": {
+      "rust_orange": "#D35400",
+      "tactical_cyan": "#00FFFF",
+      "toxic_green": "#39FF14",
+      "blood_red": "#FF2A2A",
+      "dirty_brown": "#4A3F35",
+      "panel_bg": "rgba(20, 18, 16, 0.85)",
+      "border_dim": "#333333",
+      "border_active": "#D35400"
+    },
+    "text": {
+      "primary": "#EAEAEA",
+      "tactical": "#00FFFF",
+      "warning": "#FF2A2A",
+      "muted": "#7A7A7A"
+    }
+  },
+  "typography": {
+    "rules": "Use system monospace for HUD/Tactical data. Use imported Black Ops One or heavy system sans-serif for titles.",
+    "fonts": {
+      "title": "'Black Ops One', 'Stardos Stencil', or System Heavy/Black",
+      "hud": "'Courier New', 'Menlo', 'Space Mono', or System Monospace",
+      "body": "System Sans-Serif, uppercase for UI labels"
+    },
+    "sizing": {
+      "h1_title": "48px, uppercase, tight tracking",
+      "h2_menu": "32px, uppercase",
+      "hud_stats": "18px, monospace",
+      "labels": "12px, uppercase, wide tracking (letter-spacing: 2px)"
+    }
+  },
+  "visual_style": {
+    "gameplay_graphics": {
+      "aesthetic": "Minimalist 2D Top-Down primitives",
+      "player": "A sharp, elongated white triangle (arrow) indicating direction.",
+      "rig": "A central glowing cyan Hexagon. Pulsing opacity.",
+      "zombies": "Simple circles (blobs) with a sickly toxic green fill and thick dark-green outline.",
+      "scrap": "Tiny rust-orange squares or diamonds scattered on the ground.",
+      "environment": "Dark dirty brown/grey background with sparse geometric scratches or darker dots indicating wasteland terrain."
+    },
+    "ui_surfaces": {
+      "menus": "Hard, rectangular panels. Dark translucent backgrounds (panel_bg) with solid 1px Rust Orange borders.",
+      "decorations": "Use corner brackets `[  ]` or `+` crosshairs in the corners of UI boundaries to simulate HUD visors."
+    }
+  },
+  "icons": {
+    "library": "@expo/vector-icons",
+    "mapping": {
+      "scrap": { "family": "MaterialCommunityIcons", "name": "nut", "color": "#F39C12" },
+      "health": { "family": "FontAwesome5", "name": "heartbeat", "color": "#FF2A2A" },
+      "rig_core": { "family": "Ionicons", "name": "nuclear", "color": "#00FFFF" },
+      "ammo_fire_rate": { "family": "MaterialCommunityIcons", "name": "ammunition", "color": "#EAEAEA" },
+      "upgrade": { "family": "MaterialIcons", "name": "upgrade", "color": "#39FF14" },
+      "settings": { "family": "Ionicons", "name": "settings-sharp", "color": "#7A7A7A" },
+      "pause": { "family": "Ionicons", "name": "pause", "color": "#EAEAEA" },
+      "close": { "family": "Ionicons", "name": "close-sharp", "color": "#FF2A2A" }
+    }
+  },
+  "screens": {
+    "main_menu": {
+      "layout": "Centered alignment. Massive stencil title 'LAST SCRAP'. Glowing subtitle.",
+      "elements": [
+        "Title: [LAST SCRAP] in rust orange",
+        "Start Button: Sharp rectangle, 1px border, hover/active state fills with cyan.",
+        "Settings Button, High Scores."
+      ]
+    },
+    "gameplay_hud": {
+      "layout": "Absolute positioned elements at screen edges to avoid blocking the arena.",
+      "top_left": "Player HP bar (angular, segmented) and Scrap Count (Nut Icon + Monospace integer).",
+      "top_right": "Wave Number [ W-01 ] and RIG Integrity %.",
+      "bottom_left": "Virtual Joystick area. Translucent white circles.",
+      "bottom_right": "Pause Button and optional manual fire override (if needed, otherwise blank)."
+    },
+    "upgrade_shop": {
+      "layout": "Appears between waves. Dark overlay.",
+      "elements": [
+        "Header: 'SYSTEM UPGRADE'",
+        "Cards: Grid of upgrade options (Player HP, RIG Armor, Fire Rate, Damage).",
+        "Card Style: 1px border, monospaced cost, icon on the left.",
+        "Action: 'DEPLOY' button to start next wave."
+      ]
+    },
+    "pause_game_over": {
+      "layout": "Centered modal. Red-tinted overlay for Game Over.",
+      "elements": [
+        "Stats readout: Waves survived, Total Scrap collected, Kill count.",
+        "Action: 'REBOOT SYSTEM' (Restart) or 'ABORT' (Main Menu)."
+      ]
+    }
+  },
+  "components": {
+    "joystick": {
+      "visuals": "Outer ring: 2px solid rgba(255, 255, 255, 0.2). Inner thumb: Solid rgba(255, 255, 255, 0.5) circle. No gradients.",
+      "testid": "gameplay-joystick"
+    },
+    "health_bar": {
+      "visuals": "Not rounded. Segmented blocks. Example: [||||||    ]. Background dark red, active bright red.",
+      "testid": "player-health-bar"
+    },
+    "tactical_button": {
+      "visuals": "Padding 16px. Background transparent. Border 1px solid Rust Orange. Text Uppercase, Monospace. On press: Background Rust Orange, Text Black.",
+      "testid": "ui-tactical-button"
+    }
+  },
+  "motion": {
+    "ui_transitions": "Instant or very fast (100ms) rigid wipes. No bouncy spring animations.",
+    "gameplay_feedback": "Flash screen edges dark red on player damage. Flash RIG cyan on RIG damage.",
+    "zombie_death": "Shrink scale to 0 quickly (150ms) and drop a scrap square."
+  }
+}
