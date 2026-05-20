@@ -9,25 +9,35 @@ import {
 } from "./types";
 
 export const BASE_UPGRADES: Upgrades = {
-  damage: 1,
-  fireRate: 1,
-  playerMaxHp: 1,
-  rigMaxHp: 1,
+  attack: 1,
+  health: 1,
+  armor: 1,
+  rigPlating: 1,
+  ammoCap: 1,
+  ammoRegen: 1,
   moveSpeed: 1,
   pickupRadius: 1,
 };
 
+// Fixed fire rate until weapon system is added.
+export const BASE_FIRE_INTERVAL = 0.34; // seconds between shots (≈3 shots/s)
+
 export function upgradeValue(key: keyof Upgrades, level: number): number {
-  // Effective magnitude per upgrade.
   switch (key) {
-    case "damage":
+    case "attack":
       return 10 + (level - 1) * 6; // bullet damage
-    case "fireRate":
-      return 0.45 - Math.min(0.35, (level - 1) * 0.04); // seconds between shots (lower better)
-    case "playerMaxHp":
+    case "health":
       return 100 + (level - 1) * 25;
-    case "rigMaxHp":
+    case "armor":
+      // damage reduction; cap 65%
+      return Math.min(0.65, (level - 1) * 0.05);
+    case "rigPlating":
       return 300 + (level - 1) * 80;
+    case "ammoCap":
+      return 12 + (level - 1) * 4;
+    case "ammoRegen":
+      // ammo per second
+      return 0.8 + (level - 1) * 0.35;
     case "moveSpeed":
       return 150 + (level - 1) * 15; // px/s
     case "pickupRadius":
@@ -37,10 +47,12 @@ export function upgradeValue(key: keyof Upgrades, level: number): number {
 
 export function upgradeCost(key: keyof Upgrades, level: number): number {
   const base: Record<keyof Upgrades, number> = {
-    damage: 18,
-    fireRate: 22,
-    playerMaxHp: 15,
-    rigMaxHp: 20,
+    attack: 18,
+    health: 16,
+    armor: 22,
+    rigPlating: 20,
+    ammoCap: 14,
+    ammoRegen: 18,
     moveSpeed: 14,
     pickupRadius: 12,
   };
@@ -51,29 +63,41 @@ export const UPGRADE_META: Record<
   keyof Upgrades,
   { label: string; sub: string; icon: { family: string; name: string }; color: string }
 > = {
-  damage: {
-    label: "DAMAGE",
-    sub: "Bullet impact",
+  attack: {
+    label: "ATTACK",
+    sub: "Bullet damage",
     icon: { family: "MaterialCommunityIcons", name: "ammunition" },
     color: "#FF2A2A",
   },
-  fireRate: {
-    label: "FIRE RATE",
-    sub: "Shots per second",
-    icon: { family: "MaterialCommunityIcons", name: "fire" },
-    color: "#D35400",
-  },
-  playerMaxHp: {
-    label: "ARMOR",
-    sub: "Operator HP",
+  health: {
+    label: "HEALTH",
+    sub: "Operator max HP",
     icon: { family: "FontAwesome5", name: "heartbeat" },
     color: "#39FF14",
   },
-  rigMaxHp: {
+  armor: {
+    label: "ARMOR",
+    sub: "Damage reduction",
+    icon: { family: "MaterialCommunityIcons", name: "shield-half-full" },
+    color: "#9a9a9a",
+  },
+  rigPlating: {
     label: "RIG PLATING",
     sub: "Reactor integrity",
     icon: { family: "Ionicons", name: "nuclear" },
     color: "#00FFFF",
+  },
+  ammoCap: {
+    label: "AMMO CAP",
+    sub: "Magazine size",
+    icon: { family: "MaterialCommunityIcons", name: "package-variant" },
+    color: "#F39C12",
+  },
+  ammoRegen: {
+    label: "AMMO REGEN",
+    sub: "Rounds per second",
+    icon: { family: "MaterialCommunityIcons", name: "autorenew" },
+    color: "#D35400",
   },
   moveSpeed: {
     label: "MOBILITY",
@@ -83,7 +107,7 @@ export const UPGRADE_META: Record<
   },
   pickupRadius: {
     label: "MAGNETIZER",
-    sub: "Scrap radius",
+    sub: "Scrap pickup radius",
     icon: { family: "MaterialCommunityIcons", name: "magnet" },
     color: "#F39C12",
   },
@@ -98,6 +122,9 @@ export type GameState = {
     maxHp: number;
     fireCd: number;
     damageFlash: number;
+    ammo: number;
+    maxAmmo: number;
+    ammoAcc: number; // fractional ammo accumulator for regen
   };
   rig: { pos: Vec2; hp: number; maxHp: number; radius: number; damageFlash: number };
   zombies: Zombie[];
@@ -112,14 +139,17 @@ export type GameState = {
   status: GameStatus;
   stats: { kills: number; totalScrap: number; wavesCleared: number };
   flash: { screen: number; rig: number };
-  input: Vec2;
+  input: Vec2; // joystick
+  fireHeld: boolean;
+  fireQueued: boolean; // for single-tap shot when ammo runs out / cooldown overlap
   nextId: number;
 };
 
 export function createState(width: number, height: number): GameState {
   const upgrades = { ...BASE_UPGRADES };
-  const playerMaxHp = upgradeValue("playerMaxHp", upgrades.playerMaxHp);
-  const rigMaxHp = upgradeValue("rigMaxHp", upgrades.rigMaxHp);
+  const playerMaxHp = upgradeValue("health", upgrades.health);
+  const rigMaxHp = upgradeValue("rigPlating", upgrades.rigPlating);
+  const maxAmmo = upgradeValue("ammoCap", upgrades.ammoCap);
   return {
     arena: { width, height },
     player: {
@@ -129,6 +159,9 @@ export function createState(width: number, height: number): GameState {
       maxHp: playerMaxHp,
       fireCd: 0,
       damageFlash: 0,
+      ammo: maxAmmo,
+      maxAmmo,
+      ammoAcc: 0,
     },
     rig: {
       pos: { x: width / 2, y: height / 2 },
@@ -150,13 +183,14 @@ export function createState(width: number, height: number): GameState {
     stats: { kills: 0, totalScrap: 0, wavesCleared: 0 },
     flash: { screen: 0, rig: 0 },
     input: { x: 0, y: 0 },
+    fireHeld: false,
+    fireQueued: false,
     nextId: 1,
   };
 }
 
 export function startWave(s: GameState) {
   s.wave += 1;
-  // Zombies per wave
   const count = 6 + Math.floor(s.wave * 2.2);
   s.spawnQueue = count;
   s.spawnCd = 0.6;
@@ -165,7 +199,6 @@ export function startWave(s: GameState) {
 
 function spawnZombie(s: GameState) {
   const { width, height } = s.arena;
-  // Spawn from a random edge
   const side = Math.floor(Math.random() * 4);
   let x = 0,
     y = 0;
@@ -193,7 +226,6 @@ function spawnZombie(s: GameState) {
   let damage = 6;
   let color = "#39FF14";
   if (tier > 0.92) {
-    // Brute
     hp = 60 * waveScale;
     speed = 35 + s.wave * 1.5;
     radius = 20;
@@ -201,7 +233,6 @@ function spawnZombie(s: GameState) {
     damage = 14;
     color = "#7DBE00";
   } else if (tier > 0.7) {
-    // Runner
     hp = 12 * waveScale;
     speed = 78 + s.wave * 3;
     radius = 11;
@@ -220,8 +251,7 @@ function spawnZombie(s: GameState) {
     damage,
     reward,
     hitFlash: 0,
-    // hack: attach color via cast below
-    // @ts-ignore
+    // @ts-ignore custom field
     color,
   });
 }
@@ -234,6 +264,13 @@ function dist(a: Vec2, b: Vec2): number {
 
 function clamp(v: number, lo: number, hi: number) {
   return v < lo ? lo : v > hi ? hi : v;
+}
+
+function angleDiff(a: number, b: number) {
+  let d = a - b;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
 }
 
 function spawnParticles(s: GameState, pos: Vec2, color: string, count: number, speed: number) {
@@ -252,6 +289,84 @@ function spawnParticles(s: GameState, pos: Vec2, color: string, count: number, s
   }
 }
 
+// Aim assist: find best zombie in cone in front of facing.
+function findAimTarget(s: GameState): Zombie | null {
+  const CONE = Math.PI / 5.1; // ±~35°
+  const RANGE = 360;
+  let best: Zombie | null = null;
+  let bestScore = Infinity;
+  for (const z of s.zombies) {
+    if (z.hp <= 0) continue;
+    const dx = z.pos.x - s.player.pos.x;
+    const dy = z.pos.y - s.player.pos.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d > RANGE) continue;
+    const ang = Math.atan2(dy, dx);
+    const diff = Math.abs(angleDiff(ang, s.player.facing));
+    if (diff > CONE) continue;
+    // Prefer closer + better-aligned
+    const score = d + diff * 120;
+    if (score < bestScore) {
+      bestScore = score;
+      best = z;
+    }
+  }
+  return best;
+}
+
+// Soft facing rotation when idle: gently face nearest zombie within range.
+function applyProximityFacing(s: GameState, dt: number) {
+  const NEAR = 220;
+  let nearest: Zombie | null = null;
+  let nd = Infinity;
+  for (const z of s.zombies) {
+    if (z.hp <= 0) continue;
+    const d = dist(z.pos, s.player.pos);
+    if (d < nd) {
+      nd = d;
+      nearest = z;
+    }
+  }
+  if (!nearest || nd > NEAR) return;
+  const target = Math.atan2(
+    nearest.pos.y - s.player.pos.y,
+    nearest.pos.x - s.player.pos.x,
+  );
+  const diff = angleDiff(target, s.player.facing);
+  // 6 rad/s assist turn
+  const max = 6 * dt;
+  s.player.facing += clamp(diff, -max, max);
+}
+
+function fireOne(s: GameState) {
+  if (s.player.ammo < 1) return;
+  s.player.ammo -= 1;
+  const damage = upgradeValue("attack", s.upgrades.attack);
+  // Aim assist: pick a target in cone, otherwise shoot straight ahead.
+  const target = findAimTarget(s);
+  let angle = s.player.facing;
+  if (target) {
+    angle = Math.atan2(
+      target.pos.y - s.player.pos.y,
+      target.pos.x - s.player.pos.x,
+    );
+    // Don't snap facing fully; nudge toward it for visual feedback.
+    s.player.facing = angle;
+  }
+  const bspeed = 540;
+  s.bullets.push({
+    id: s.nextId++,
+    pos: { x: s.player.pos.x, y: s.player.pos.y },
+    vel: {
+      x: Math.cos(angle) * bspeed,
+      y: Math.sin(angle) * bspeed,
+    },
+    radius: 4,
+    ttl: 1.2,
+    damage,
+  });
+}
+
 export function tick(s: GameState, dt: number) {
   if (s.status !== "playing") return;
 
@@ -261,7 +376,6 @@ export function tick(s: GameState, dt: number) {
     if (s.spawnCd <= 0) {
       spawnZombie(s);
       s.spawnQueue -= 1;
-      // Spawn faster as waves progress
       s.spawnCd = Math.max(0.18, 0.7 - s.wave * 0.025);
     }
   }
@@ -274,43 +388,33 @@ export function tick(s: GameState, dt: number) {
     const ny = s.input.y / Math.max(inLen, 1);
     s.player.pos.x += nx * moveSpeed * dt;
     s.player.pos.y += ny * moveSpeed * dt;
+    // Face movement direction (input-driven).
     s.player.facing = Math.atan2(ny, nx);
+  } else {
+    // Idle: apply proximity aim assist
+    applyProximityFacing(s, dt);
   }
   s.player.pos.x = clamp(s.player.pos.x, 16, s.arena.width - 16);
   s.player.pos.y = clamp(s.player.pos.y, 16, s.arena.height - 16);
 
-  // Auto-aim & fire
-  const fireRate = upgradeValue("fireRate", s.upgrades.fireRate); // seconds between shots
-  const damage = upgradeValue("damage", s.upgrades.damage);
-  s.player.fireCd -= dt;
-  if (s.zombies.length > 0) {
-    let nearest: Zombie | null = null;
-    let nd = Infinity;
-    for (const z of s.zombies) {
-      const d = dist(z.pos, s.player.pos);
-      if (d < nd) {
-        nd = d;
-        nearest = z;
-      }
-    }
-    if (nearest && nd < 500) {
-      s.player.facing = Math.atan2(nearest.pos.y - s.player.pos.y, nearest.pos.x - s.player.pos.x);
-      if (s.player.fireCd <= 0) {
-        s.player.fireCd = fireRate;
-        const bspeed = 520;
-        s.bullets.push({
-          id: s.nextId++,
-          pos: { x: s.player.pos.x, y: s.player.pos.y },
-          vel: {
-            x: Math.cos(s.player.facing) * bspeed,
-            y: Math.sin(s.player.facing) * bspeed,
-          },
-          radius: 4,
-          ttl: 1.2,
-          damage,
-        });
-      }
-    }
+  // Ammo regen
+  s.player.ammoAcc += upgradeValue("ammoRegen", s.upgrades.ammoRegen) * dt;
+  while (s.player.ammoAcc >= 1) {
+    s.player.ammoAcc -= 1;
+    if (s.player.ammo < s.player.maxAmmo) s.player.ammo += 1;
+  }
+  if (s.player.ammo >= s.player.maxAmmo) s.player.ammoAcc = 0;
+
+  // Firing
+  s.player.fireCd = Math.max(0, s.player.fireCd - dt);
+  const wantFire = s.fireHeld || s.fireQueued;
+  if (wantFire && s.player.fireCd <= 0 && s.player.ammo > 0) {
+    fireOne(s);
+    s.player.fireCd = BASE_FIRE_INTERVAL;
+    s.fireQueued = false; // consumed
+  } else if (!s.fireHeld) {
+    // tap without ammo or during cooldown — clear queue after small grace
+    // (we just leave fireQueued as-is for one frame; cleared above when consumed)
   }
 
   // Bullets
@@ -345,9 +449,9 @@ export function tick(s: GameState, dt: number) {
   s.bullets = s.bullets.filter((b) => b.ttl > 0);
 
   // Zombie movement & damage
+  const armorReduction = upgradeValue("armor", s.upgrades.armor);
   for (const z of s.zombies) {
     if (z.hp <= 0) continue;
-    // Target: RIG primarily, but if player closer they may swat player
     const dToRig = dist(z.pos, s.rig.pos);
     const dToPlayer = dist(z.pos, s.player.pos);
     const target = dToPlayer < dToRig - 60 ? s.player.pos : s.rig.pos;
@@ -358,7 +462,6 @@ export function tick(s: GameState, dt: number) {
     z.pos.y += z.vel.y * dt;
     z.hitFlash = Math.max(0, z.hitFlash - dt);
 
-    // RIG damage
     if (dToRig < z.radius + s.rig.radius) {
       s.rig.hp -= z.damage;
       s.rig.damageFlash = 0.25;
@@ -366,9 +469,9 @@ export function tick(s: GameState, dt: number) {
       z.hp = -1;
       spawnParticles(s, z.pos, "#00FFFF", 6, 110);
     }
-    // Player damage
     if (dToPlayer < z.radius + 14) {
-      s.player.hp -= z.damage * dt * 2.4; // continuous contact
+      const dmg = z.damage * dt * 2.4 * (1 - armorReduction);
+      s.player.hp -= dmg;
       s.player.damageFlash = 0.18;
       s.flash.screen = 0.25;
     }
@@ -421,13 +524,12 @@ export function tick(s: GameState, dt: number) {
   }
   s.particles = s.particles.filter((p) => p.ttl > 0);
 
-  // Flashes & cooldown decays
+  // Flashes
   s.flash.screen = Math.max(0, s.flash.screen - dt);
   s.flash.rig = Math.max(0, s.flash.rig - dt);
   s.player.damageFlash = Math.max(0, s.player.damageFlash - dt);
   s.rig.damageFlash = Math.max(0, s.rig.damageFlash - dt);
 
-  // Death check
   if (s.player.hp <= 0 || s.rig.hp <= 0) {
     s.player.hp = Math.max(0, s.player.hp);
     s.rig.hp = Math.max(0, s.rig.hp);
@@ -435,10 +537,8 @@ export function tick(s: GameState, dt: number) {
     return;
   }
 
-  // Wave clear
   if (s.spawnQueue === 0 && s.zombies.length === 0) {
     s.stats.wavesCleared += 1;
-    // Wave bonus
     const bonus = 8 + s.wave * 3;
     s.scrap += bonus;
     s.stats.totalScrap += bonus;
@@ -452,24 +552,29 @@ export function applyUpgrade(s: GameState, key: keyof Upgrades): boolean {
   s.scrap -= cost;
   s.upgrades[key] += 1;
 
-  // Apply effects that change current maxima
-  if (key === "playerMaxHp") {
-    const newMax = upgradeValue("playerMaxHp", s.upgrades.playerMaxHp);
+  if (key === "health") {
+    const newMax = upgradeValue("health", s.upgrades.health);
     const diff = newMax - s.player.maxHp;
     s.player.maxHp = newMax;
     s.player.hp = Math.min(newMax, s.player.hp + Math.max(0, diff));
   }
-  if (key === "rigMaxHp") {
-    const newMax = upgradeValue("rigMaxHp", s.upgrades.rigMaxHp);
+  if (key === "rigPlating") {
+    const newMax = upgradeValue("rigPlating", s.upgrades.rigPlating);
     const diff = newMax - s.rig.maxHp;
     s.rig.maxHp = newMax;
     s.rig.hp = Math.min(newMax, s.rig.hp + Math.max(0, diff));
+  }
+  if (key === "ammoCap") {
+    const newCap = upgradeValue("ammoCap", s.upgrades.ammoCap);
+    const diff = newCap - s.player.maxAmmo;
+    s.player.maxAmmo = newCap;
+    s.player.ammo = Math.min(newCap, s.player.ammo + Math.max(0, diff));
   }
   return true;
 }
 
 export function repair(s: GameState) {
-  // Free small repair between waves (10% each)
   s.player.hp = Math.min(s.player.maxHp, s.player.hp + s.player.maxHp * 0.15);
   s.rig.hp = Math.min(s.rig.maxHp, s.rig.hp + s.rig.maxHp * 0.1);
+  s.player.ammo = s.player.maxAmmo;
 }

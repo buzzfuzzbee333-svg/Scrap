@@ -11,6 +11,7 @@ import { useRouter } from "expo-router";
 import Arena from "@/src/components/Arena";
 import HUD from "@/src/components/HUD";
 import Joystick from "@/src/components/Joystick";
+import FireButton from "@/src/components/FireButton";
 import UpgradeShop from "@/src/components/UpgradeShop";
 import {
   GameOverOverlay,
@@ -143,6 +144,22 @@ export default function GameScreen() {
     s.input.y = y;
   }, []);
 
+  const onFireTap = useCallback(() => {
+    const s = stateRef.current;
+    if (!s) return;
+    s.fireQueued = true;
+  }, []);
+  const onHoldStart = useCallback(() => {
+    const s = stateRef.current;
+    if (!s) return;
+    s.fireHeld = true;
+  }, []);
+  const onHoldEnd = useCallback(() => {
+    const s = stateRef.current;
+    if (!s) return;
+    s.fireHeld = false;
+  }, []);
+
   const handlePause = () => {
     const s = stateRef.current;
     if (!s) return;
@@ -195,6 +212,25 @@ export default function GameScreen() {
           <Joystick onMove={onJoystickMove} />
         </View>
 
+        {/* Fire button bottom-right */}
+        {s && (
+          <View
+            pointerEvents="box-none"
+            style={[
+              styles.fireWrap,
+              { bottom: insets.bottom + 24, right: 24 },
+            ]}
+          >
+            <FireButton
+              ammo={Math.floor(s.player.ammo)}
+              maxAmmo={s.player.maxAmmo}
+              onPress={onFireTap}
+              onHoldStart={onHoldStart}
+              onHoldEnd={onHoldEnd}
+            />
+          </View>
+        )}
+
         {waveBannerVisible && s && <WaveBanner wave={s.wave} />}
 
         {s?.status === "paused" && (
@@ -236,6 +272,7 @@ export default function GameScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#080808" },
   joystickWrap: { position: "absolute" },
+  fireWrap: { position: "absolute" },
   damageFlash: {
     ...StyleSheet.absoluteFillObject,
     borderColor: "#FF2A2A",

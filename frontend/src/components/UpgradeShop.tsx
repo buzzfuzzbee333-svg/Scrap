@@ -119,10 +119,12 @@ export default function UpgradeShop({ state, onDeploy, forceTick }: Props) {
 }
 
 function formatValue(key: keyof Upgrades, v: number) {
-  if (key === "fireRate") return `${(1 / v).toFixed(2)}/s`;
+  if (key === "armor") return `${Math.round(v * 100)}%`;
+  if (key === "ammoRegen") return `${v.toFixed(2)}/s`;
+  if (key === "ammoCap") return `${Math.round(v)} rds`;
   if (key === "moveSpeed") return `${Math.round(v)}u/s`;
   if (key === "pickupRadius") return `${Math.round(v)}px`;
-  if (key === "damage") return `${Math.round(v)} dmg`;
+  if (key === "attack") return `${Math.round(v)} dmg`;
   return Math.round(v).toString();
 }
 

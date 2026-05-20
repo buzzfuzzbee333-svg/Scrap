@@ -37,19 +37,23 @@ export type Particle = {
 };
 
 export type Upgrades = {
-  damage: number; // 1..n
-  fireRate: number; // 1..n  (higher = faster)
-  playerMaxHp: number; // 1..n
-  rigMaxHp: number; // 1..n
-  moveSpeed: number; // 1..n
-  pickupRadius: number; // 1..n
+  attack: number;
+  health: number;
+  armor: number;
+  rigPlating: number;
+  ammoCap: number;
+  ammoRegen: number;
+  moveSpeed: number;
+  pickupRadius: number;
 };
 
 export const UPGRADE_KEYS: (keyof Upgrades)[] = [
-  "damage",
-  "fireRate",
-  "playerMaxHp",
-  "rigMaxHp",
+  "attack",
+  "health",
+  "armor",
+  "ammoCap",
+  "ammoRegen",
+  "rigPlating",
   "moveSpeed",
   "pickupRadius",
 ];
