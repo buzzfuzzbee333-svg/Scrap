@@ -19,8 +19,10 @@ export const BASE_UPGRADES: Upgrades = {
   pickupRadius: 1,
 };
 
-// Fixed fire rate until weapon system is added.
-export const BASE_FIRE_INTERVAL = 0.34; // seconds between shots (≈3 shots/s)
+// Fire intervals (seconds between shots) until weapon system is added.
+// Tap = single shot at semi-auto cadence; Hold = continuous full-auto, faster.
+export const BASE_FIRE_INTERVAL = 0.34; // ~3 shots/s for taps
+export const AUTO_FIRE_INTERVAL = 0.13; // ~7.7 shots/s when holding
 
 export function upgradeValue(key: keyof Upgrades, level: number): number {
   switch (key) {
@@ -421,11 +423,8 @@ export function tick(s: GameState, dt: number) {
   const wantFire = s.fireHeld || s.fireQueued;
   if (wantFire && s.player.fireCd <= 0 && s.player.ammo > 0) {
     fireOne(s);
-    s.player.fireCd = BASE_FIRE_INTERVAL;
+    s.player.fireCd = s.fireHeld ? AUTO_FIRE_INTERVAL : BASE_FIRE_INTERVAL;
     s.fireQueued = false; // consumed
-  } else if (!s.fireHeld) {
-    // tap without ammo or during cooldown — clear queue after small grace
-    // (we just leave fireQueued as-is for one frame; cleared above when consumed)
   }
 
   // Bullets
