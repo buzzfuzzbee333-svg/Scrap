@@ -3,29 +3,26 @@ import {
   View,
   StyleSheet,
   PanResponder,
-  GestureResponderEvent,
   PanResponderGestureState,
 } from "react-native";
 
 type Props = {
   size?: number;
   onMove: (x: number, y: number) => void; // x,y in [-1,1]
-  deadzone?: number; // 0..1, fraction of max radius ignored
+  deadzone?: number; // 0..1, fraction ignored near center
   testID?: string;
 };
 
 export default function Joystick({
-  size = 130,
+  size = 140,
   onMove,
-  deadzone = 0.12,
+  deadzone = 0.15,
   testID,
 }: Props) {
   const radius = size / 2;
   const knobSize = size * 0.42;
   const max = radius - knobSize / 4;
   const [knob, setKnob] = useState({ dx: 0, dy: 0 });
-  // Touch offset within the joystick view at the moment of touch-down.
-  const grantOffsetRef = useRef({ x: 0, y: 0 });
 
   const clamp = (dx: number, dy: number) => {
     const len = Math.hypot(dx, dy);
@@ -40,47 +37,34 @@ export default function Joystick({
     let ny = dy / max;
     const mag = Math.hypot(nx, ny);
     if (mag < deadzone) {
-      nx = 0;
-      ny = 0;
-    } else {
-      // Rescale so output is 0 at deadzone edge, 1 at max
-      const scaled = (mag - deadzone) / (1 - deadzone);
-      const k = scaled / mag;
-      nx *= k;
-      ny *= k;
+      onMove(0, 0);
+      return;
     }
-    onMove(nx, ny);
+    // Rescale so output is 0 at deadzone, 1 at edge
+    const scaled = Math.min(1, (mag - deadzone) / (1 - deadzone));
+    const k = scaled / mag;
+    onMove(nx * k, ny * k);
   };
 
   const responder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (e: GestureResponderEvent) => {
-        // locationX/Y is the touch position inside the joystick view.
-        const lx = e.nativeEvent.locationX ?? 0;
-        const ly = e.nativeEvent.locationY ?? 0;
-        const offX = lx - radius;
-        const offY = ly - radius;
-        grantOffsetRef.current = { x: offX, y: offY };
-        const c = clamp(offX, offY);
-        setKnob(c);
-        emit(c.dx, c.dy);
+      onPanResponderGrant: () => {
+        // Treat touch-down as the new center; player stays still until drag.
+        setKnob({ dx: 0, dy: 0 });
+        onMove(0, 0);
       },
       onPanResponderMove: (_e, gs: PanResponderGestureState) => {
-        const dx = gs.dx + grantOffsetRef.current.x;
-        const dy = gs.dy + grantOffsetRef.current.y;
-        const c = clamp(dx, dy);
+        const c = clamp(gs.dx, gs.dy);
         setKnob(c);
         emit(c.dx, c.dy);
       },
       onPanResponderRelease: () => {
-        grantOffsetRef.current = { x: 0, y: 0 };
         setKnob({ dx: 0, dy: 0 });
         onMove(0, 0);
       },
       onPanResponderTerminate: () => {
-        grantOffsetRef.current = { x: 0, y: 0 };
         setKnob({ dx: 0, dy: 0 });
         onMove(0, 0);
       },
@@ -116,9 +100,9 @@ export default function Joystick({
 
 const styles = StyleSheet.create({
   base: {
-    backgroundColor: "rgba(20,18,16,0.45)",
+    backgroundColor: "rgba(20,18,16,0.55)",
     borderWidth: 2,
-    borderColor: "rgba(211,84,0,0.45)",
+    borderColor: "rgba(211,84,0,0.55)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -127,7 +111,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.08)",
   },
   knob: {
-    backgroundColor: "rgba(0,255,255,0.35)",
+    backgroundColor: "rgba(0,255,255,0.4)",
     borderWidth: 1,
     borderColor: "#00FFFF",
   },
