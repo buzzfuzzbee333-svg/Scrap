@@ -1,96 +1,111 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Image } from "react-native";
 import { GameState } from "../game/engine";
+
+const ARENA_BG = require("../../assets/images/game/arena.jpg");
+const RIG_IMG = require("../../assets/images/game/rig.png");
+const HERO_IMG = require("../../assets/images/game/hero.png");
+const Z_WALKER = require("../../assets/images/game/zombie_walker.png");
+const Z_RUNNER = require("../../assets/images/game/zombie_runner.png");
+const Z_BRUTE = require("../../assets/images/game/zombie_brute.png");
+
+const HERO_SIZE = 42;
+const RIG_SIZE = 110;
 
 type Props = {
   state: GameState;
 };
 
+function zombieSprite(radius: number) {
+  if (radius >= 18) return Z_BRUTE;
+  if (radius <= 12) return Z_RUNNER;
+  return Z_WALKER;
+}
+
+function zombieRenderSize(radius: number) {
+  return radius * 2.6;
+}
+
 function Arena({ state }: Props) {
   const { arena, rig, player, zombies, bullets, scraps, particles } = state;
 
-  const rigPulse = 0.7 + Math.sin(Date.now() / 280) * 0.3;
-  const rigShadow = 18 + rigPulse * 12;
-  const rigHpRatio = rig.hp / rig.maxHp;
+  const pulse = (Math.sin(Date.now() / 320) + 1) / 2;
+  const rigFlash = rig.damageFlash > 0;
+  const rigSize = RIG_SIZE + pulse * 6;
+  const rigShieldSize = rig.radius * 2 + 38;
 
   return (
     <View
       testID="game-arena"
       pointerEvents="none"
-      style={[
-        styles.arena,
-        { width: arena.width, height: arena.height },
-      ]}
+      style={[styles.arena, { width: arena.width, height: arena.height }]}
     >
-      {/* Wasteland scratches: static-ish grid dots */}
-      <Grid width={arena.width} height={arena.height} />
+      {/* Arena floor background */}
+      <Image
+        source={ARENA_BG}
+        resizeMode="cover"
+        style={[
+          StyleSheet.absoluteFill,
+          { width: arena.width, height: arena.height, opacity: 0.85 },
+        ]}
+      />
+      {/* Vignette */}
+      <View style={styles.vignette} pointerEvents="none" />
 
-      {/* RIG shield ring */}
+      {/* RIG shield aura */}
       <View
         style={[
           styles.rigShield,
           {
-            left: rig.pos.x - rig.radius - 22,
-            top: rig.pos.y - rig.radius - 22,
-            width: (rig.radius + 22) * 2,
-            height: (rig.radius + 22) * 2,
-            borderColor:
-              rig.damageFlash > 0
-                ? "rgba(255,42,42,0.85)"
-                : "rgba(0,255,255,0.25)",
-            opacity: 0.4 + rigPulse * 0.4,
+            left: rig.pos.x - rigShieldSize / 2,
+            top: rig.pos.y - rigShieldSize / 2,
+            width: rigShieldSize,
+            height: rigShieldSize,
+            borderColor: rigFlash
+              ? "rgba(255,42,42,0.85)"
+              : "rgba(0,255,255,0.35)",
+            opacity: 0.4 + pulse * 0.4,
           },
         ]}
       />
 
-      {/* RIG core - hexagonal-ish (use two rotated squares) */}
+      {/* RIG sprite */}
       <View
-        style={[
-          styles.rigBase,
-          {
-            left: rig.pos.x - rig.radius,
-            top: rig.pos.y - rig.radius,
-            width: rig.radius * 2,
-            height: rig.radius * 2,
-            shadowColor: rig.damageFlash > 0 ? "#FF2A2A" : "#00FFFF",
-            shadowRadius: rigShadow,
-            shadowOpacity: 0.9,
-            backgroundColor:
-              rig.damageFlash > 0 ? "#5b0707" : "#001a1a",
-          },
-        ]}
+        style={{
+          position: "absolute",
+          left: rig.pos.x - rigSize / 2,
+          top: rig.pos.y - rigSize / 2,
+          width: rigSize,
+          height: rigSize,
+        }}
       >
-        <View
-          style={[
-            styles.rigHex,
-            { transform: [{ rotate: "30deg" }], borderColor: rig.damageFlash > 0 ? "#FF2A2A" : "#00FFFF" },
-          ]}
+        <Image
+          source={RIG_IMG}
+          style={{ width: "100%", height: "100%", opacity: 0.95 }}
+          resizeMode="contain"
         />
-        <View
-          style={[
-            styles.rigHex,
-            { transform: [{ rotate: "-30deg" }], borderColor: rig.damageFlash > 0 ? "#FF2A2A" : "#00FFFF" },
-          ]}
-        />
-        <View
-          style={[
-            styles.rigInner,
-            {
-              backgroundColor: rig.damageFlash > 0 ? "#FF2A2A" : "#00FFFF",
-              opacity: 0.5 + rigPulse * 0.5,
-            },
-          ]}
-        />
+        {rigFlash && (
+          <View
+            style={[
+              StyleSheet.absoluteFillObject,
+              {
+                backgroundColor: "#FF2A2A",
+                opacity: 0.35,
+                borderRadius: rigSize / 2,
+              },
+            ]}
+          />
+        )}
       </View>
 
-      {/* RIG hp ring under */}
+      {/* RIG HP indicator */}
       <View
         style={[
           styles.rigHpBar,
           {
-            left: rig.pos.x - 38,
-            top: rig.pos.y + rig.radius + 10,
-            width: 76,
+            left: rig.pos.x - 46,
+            top: rig.pos.y + rigSize / 2 + 6,
+            width: 92,
           },
         ]}
       >
@@ -98,66 +113,71 @@ function Arena({ state }: Props) {
           style={[
             styles.rigHpFill,
             {
-              width: `${Math.max(0, rigHpRatio * 100)}%`,
-              backgroundColor: rigHpRatio > 0.4 ? "#00FFFF" : "#FF2A2A",
+              width: `${Math.max(0, (rig.hp / rig.maxHp) * 100)}%`,
+              backgroundColor:
+                rig.hp / rig.maxHp > 0.4 ? "#00FFFF" : "#FF2A2A",
             },
           ]}
         />
       </View>
 
-      {/* Scraps */}
+      {/* Scrap drops */}
       {scraps.map((s) => (
         <View
           key={s.id}
           style={[
             styles.scrap,
-            {
-              left: s.pos.x - 5,
-              top: s.pos.y - 5,
-            },
+            { left: s.pos.x - 5, top: s.pos.y - 5 },
           ]}
         />
       ))}
 
       {/* Zombies */}
       {zombies.map((z) => {
-        // @ts-ignore custom color
-        const col: string = z.color || "#39FF14";
+        const sprite = zombieSprite(z.radius);
+        const visSize = zombieRenderSize(z.radius);
         const flash = z.hitFlash > 0;
         const hpRatio = z.hp / z.maxHp;
         return (
           <View key={z.id}>
-            <View
-              style={[
-                styles.zombie,
-                {
-                  left: z.pos.x - z.radius,
-                  top: z.pos.y - z.radius,
-                  width: z.radius * 2,
-                  height: z.radius * 2,
-                  borderRadius: z.radius,
-                  backgroundColor: flash ? "#FFFFFF" : col,
-                  borderColor: "#113300",
-                },
-              ]}
+            <Image
+              source={sprite}
+              resizeMode="contain"
+              style={{
+                position: "absolute",
+                left: z.pos.x - visSize / 2,
+                top: z.pos.y - visSize / 2,
+                width: visSize,
+                height: visSize,
+                opacity: flash ? 0.6 : 1,
+              }}
             />
+            {flash && (
+              <View
+                style={{
+                  position: "absolute",
+                  left: z.pos.x - visSize / 2,
+                  top: z.pos.y - visSize / 2,
+                  width: visSize,
+                  height: visSize,
+                  backgroundColor: "#FFFFFF",
+                  opacity: 0.35,
+                  borderRadius: visSize / 2,
+                }}
+              />
+            )}
             {hpRatio < 1 && (
               <View
                 style={[
                   styles.zHp,
                   {
                     left: z.pos.x - z.radius,
-                    top: z.pos.y - z.radius - 6,
+                    top: z.pos.y - visSize / 2 - 6,
                     width: z.radius * 2,
                   },
                 ]}
               >
-                <View
-                  style={[
-                    styles.zHpFill,
-                    { width: `${hpRatio * 100}%` },
-                  ]}
-                />
+                <View style={[styles.zHpFill, { width: `${hpRatio * 100}%` }]} />
               </View>
             )}
           </View>
@@ -168,31 +188,38 @@ function Arena({ state }: Props) {
       {bullets.map((b) => (
         <View
           key={b.id}
-          style={[
-            styles.bullet,
-            {
-              left: b.pos.x - 3,
-              top: b.pos.y - 3,
-            },
-          ]}
+          style={[styles.bullet, { left: b.pos.x - 3, top: b.pos.y - 3 }]}
         />
       ))}
 
-      {/* Player */}
+      {/* Player hero sprite */}
       <View
-        style={[
-          styles.player,
-          {
-            left: player.pos.x - 14,
-            top: player.pos.y - 14,
-            backgroundColor: player.damageFlash > 0 ? "#FF2A2A" : "transparent",
-            borderColor: player.damageFlash > 0 ? "#FF2A2A" : "#FFFFFF",
-            transform: [{ rotate: `${player.facing + Math.PI / 2}rad` }],
-          },
-        ]}
+        style={{
+          position: "absolute",
+          left: player.pos.x - HERO_SIZE / 2,
+          top: player.pos.y - HERO_SIZE / 2,
+          width: HERO_SIZE,
+          height: HERO_SIZE,
+          transform: [{ rotate: `${player.facing + Math.PI / 2}rad` }],
+        }}
       >
-        <View style={styles.playerArrow} />
-        <View style={styles.playerCore} />
+        <Image
+          source={HERO_IMG}
+          resizeMode="contain"
+          style={{ width: "100%", height: "100%" }}
+        />
+        {player.damageFlash > 0 && (
+          <View
+            style={[
+              StyleSheet.absoluteFillObject,
+              {
+                backgroundColor: "#FF2A2A",
+                opacity: 0.45,
+                borderRadius: HERO_SIZE / 2,
+              },
+            ]}
+          />
+        )}
       </View>
 
       {/* Particles */}
@@ -214,67 +241,20 @@ function Arena({ state }: Props) {
   );
 }
 
-function Grid({ width, height }: { width: number; height: number }) {
-  // Sparse static dots for wasteland feel
-  const dots: { x: number; y: number; o: number }[] = [];
-  const step = 48;
-  for (let y = step / 2; y < height; y += step) {
-    for (let x = step / 2; x < width; x += step) {
-      // Pseudo-deterministic offset
-      const seed = (x * 73856093) ^ (y * 19349663);
-      const jx = ((seed % 17) / 17) * 8;
-      const jy = (((seed >> 4) % 19) / 19) * 8;
-      const o = 0.04 + (((seed >> 8) % 7) / 7) * 0.05;
-      dots.push({ x: x + jx, y: y + jy, o });
-    }
-  }
-  return (
-    <>
-      {dots.map((d, i) => (
-        <View
-          key={i}
-          style={{
-            position: "absolute",
-            left: d.x,
-            top: d.y,
-            width: 2,
-            height: 2,
-            backgroundColor: `rgba(234,234,234,${d.o})`,
-          }}
-        />
-      ))}
-    </>
-  );
-}
-
 const styles = StyleSheet.create({
   arena: {
     position: "absolute",
-    backgroundColor: "#141210",
+    backgroundColor: "#080808",
     overflow: "hidden",
   },
-  rigBase: {
-    position: "absolute",
-    borderRadius: 4,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rigHex: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-    borderWidth: 2,
-    borderColor: "#00FFFF",
-  },
-  rigInner: {
-    width: "45%",
-    height: "45%",
-    backgroundColor: "#00FFFF",
+  vignette: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(8,8,8,0.35)",
   },
   rigShield: {
     position: "absolute",
     borderRadius: 999,
-    borderWidth: 1,
+    borderWidth: 2,
   },
   rigHpBar: {
     position: "absolute",
@@ -285,36 +265,6 @@ const styles = StyleSheet.create({
   },
   rigHpFill: {
     height: "100%",
-  },
-  player: {
-    position: "absolute",
-    width: 28,
-    height: 28,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  playerArrow: {
-    position: "absolute",
-    top: -8,
-    width: 0,
-    height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderBottomWidth: 10,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderBottomColor: "#FFFFFF",
-  },
-  playerCore: {
-    width: 8,
-    height: 8,
-    backgroundColor: "#FFFFFF",
-  },
-  zombie: {
-    position: "absolute",
-    borderWidth: 2,
   },
   zHp: {
     position: "absolute",
@@ -329,7 +279,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 6,
     height: 6,
-    backgroundColor: "#00FFFF",
+    backgroundColor: "#FFEFA8",
+    borderRadius: 3,
   },
   scrap: {
     position: "absolute",

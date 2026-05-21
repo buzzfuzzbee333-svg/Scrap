@@ -47,11 +47,16 @@ Free FIELD REPAIR button between waves restores 15% player HP / 10% RIG HP and t
 ## Persistence
 Local key `lastscrap_best_v1` stores `{ wave, scrap, kills }` highest values, updated on wave clear and game over.
 
-## Visual system (per /app/design_guidelines.json)
-- Theme: gritty post-apocalyptic. Charcoal black backgrounds, rust orange (#D35400), tactical cyan (#00FFFF), toxic green zombies (#39FF14), blood red (#FF2A2A), scrap amber (#F39C12). No purple/violet.
+## Visual system (per /app/design_guidelines.json + user art pack)
+- Art assets in `/app/frontend/assets/images/game/`:
+  - `arena.jpg` — full top-down post-apocalyptic battlefield (cracked floor, scrap walls)
+  - `rig.png` — fusion reactor with cyan core (transparent bg, chroma-keyed from source JPG)
+  - `hero.png` — top-down operator sprite with weapon (chroma-keyed olive green removed)
+  - `zombie_walker.png`, `zombie_runner.png`, `zombie_brute.png` — three tiers split from source sheet
+- Sprite selection: `engine.spawnZombie` sets radius (14 walker / 11 runner / 20 brute); `Arena.tsx` maps radius → sprite
+- Damage flashes still overlay sprites with red/white tinted view layers
+- Theme: gritty post-apocalyptic with rust orange (#D35400), tactical cyan (#00FFFF), scrap amber (#F39C12). No purple/violet.
 - Typography: Heavy uppercase sans for titles, Courier monospace for HUD/stats
-- Corner brackets, segmented health bars, sharp angular panels
-- Motion: screen-edge red flash on player damage, RIG flash cyan/red on hit, particle bursts on kills
 
 ## Files
 - `app/_layout.tsx`, `app/index.tsx` (menu), `app/game.tsx` (gameplay)
