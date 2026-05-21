@@ -36,8 +36,8 @@ export function upgradeValue(key: keyof Upgrades, level: number): number {
     case "ammoCap":
       return 12 + (level - 1) * 4;
     case "ammoRegen":
-      // ammo per second
-      return 0.8 + (level - 1) * 0.35;
+      // ammo per second while reloading
+      return 8 + (level - 1) * 2.5;
     case "moveSpeed":
       return 150 + (level - 1) * 15; // px/s
     case "pickupRadius":
@@ -94,8 +94,8 @@ export const UPGRADE_META: Record<
     color: "#F39C12",
   },
   ammoRegen: {
-    label: "AMMO REGEN",
-    sub: "Rounds per second",
+    label: "RELOAD SPEED",
+    sub: "Rounds per second when empty",
     icon: { family: "MaterialCommunityIcons", name: "autorenew" },
     color: "#D35400",
   },
@@ -125,6 +125,7 @@ export type GameState = {
     ammo: number;
     maxAmmo: number;
     ammoAcc: number; // fractional ammo accumulator for regen
+    reloading: boolean;
   };
   rig: { pos: Vec2; hp: number; maxHp: number; radius: number; damageFlash: number };
   zombies: Zombie[];
@@ -162,6 +163,7 @@ export function createState(width: number, height: number): GameState {
       ammo: maxAmmo,
       maxAmmo,
       ammoAcc: 0,
+      reloading: false,
     },
     rig: {
       pos: { x: width / 2, y: height / 2 },
@@ -397,13 +399,22 @@ export function tick(s: GameState, dt: number) {
   s.player.pos.x = clamp(s.player.pos.x, 16, s.arena.width - 16);
   s.player.pos.y = clamp(s.player.pos.y, 16, s.arena.height - 16);
 
-  // Ammo regen
-  s.player.ammoAcc += upgradeValue("ammoRegen", s.upgrades.ammoRegen) * dt;
-  while (s.player.ammoAcc >= 1) {
-    s.player.ammoAcc -= 1;
-    if (s.player.ammo < s.player.maxAmmo) s.player.ammo += 1;
+  // Ammo regen — only kicks in when fully empty (acts like a fast auto-reload).
+  if (s.player.ammo <= 0 && !s.player.reloading) {
+    s.player.reloading = true;
+    s.player.ammoAcc = 0;
   }
-  if (s.player.ammo >= s.player.maxAmmo) s.player.ammoAcc = 0;
+  if (s.player.reloading) {
+    s.player.ammoAcc += upgradeValue("ammoRegen", s.upgrades.ammoRegen) * dt;
+    while (s.player.ammoAcc >= 1) {
+      s.player.ammoAcc -= 1;
+      if (s.player.ammo < s.player.maxAmmo) s.player.ammo += 1;
+    }
+    if (s.player.ammo >= s.player.maxAmmo) {
+      s.player.reloading = false;
+      s.player.ammoAcc = 0;
+    }
+  }
 
   // Firing
   s.player.fireCd = Math.max(0, s.player.fireCd - dt);
