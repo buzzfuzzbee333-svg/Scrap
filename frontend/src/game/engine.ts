@@ -22,7 +22,7 @@ export const BASE_UPGRADES: Upgrades = {
 // Fire intervals (seconds between shots) until weapon system is added.
 // Tap = single shot at semi-auto cadence; Hold = continuous full-auto, faster.
 export const BASE_FIRE_INTERVAL = 0.34; // ~3 shots/s for taps
-export const AUTO_FIRE_INTERVAL = 0.13; // ~7.7 shots/s when holding
+export const AUTO_FIRE_INTERVAL = 0.08; // ~12.5 shots/s when holding
 
 export function upgradeValue(key: keyof Upgrades, level: number): number {
   switch (key) {
@@ -197,7 +197,8 @@ export function startWave(s: GameState) {
   s.wave += 1;
   const count = 6 + Math.floor(s.wave * 2.2);
   s.spawnQueue = count;
-  s.spawnCd = 0.6;
+  // Initial delay so each wave eases in before the first zombie arrives.
+  s.spawnCd = 1.2;
   s.status = "playing";
 }
 
@@ -380,7 +381,7 @@ export function tick(s: GameState, dt: number) {
     if (s.spawnCd <= 0) {
       spawnZombie(s);
       s.spawnQueue -= 1;
-      s.spawnCd = Math.max(0.18, 0.7 - s.wave * 0.025);
+      s.spawnCd = Math.max(0.45, 1.4 - s.wave * 0.04);
     }
   }
 
@@ -586,5 +587,8 @@ export function applyUpgrade(s: GameState, key: keyof Upgrades): boolean {
 export function repair(s: GameState) {
   s.player.hp = Math.min(s.player.maxHp, s.player.hp + s.player.maxHp * 0.15);
   s.rig.hp = Math.min(s.rig.maxHp, s.rig.hp + s.rig.maxHp * 0.1);
+  s.player.ammo = s.player.maxAmmo;
+}
+ig.maxHp, s.rig.hp + s.rig.maxHp * 0.1);
   s.player.ammo = s.player.maxAmmo;
 }
