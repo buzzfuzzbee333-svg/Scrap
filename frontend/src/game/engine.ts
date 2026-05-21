@@ -589,6 +589,3 @@ export function repair(s: GameState) {
   s.rig.hp = Math.min(s.rig.maxHp, s.rig.hp + s.rig.maxHp * 0.1);
   s.player.ammo = s.player.maxAmmo;
 }
-ig.maxHp, s.rig.hp + s.rig.maxHp * 0.1);
-  s.player.ammo = s.player.maxAmmo;
-}
