@@ -200,7 +200,7 @@ function Arena({ state }: Props) {
           top: player.pos.y - HERO_SIZE / 2,
           width: HERO_SIZE,
           height: HERO_SIZE,
-          transform: [{ rotate: `${player.facing + Math.PI / 2}rad` }],
+          transform: [{ rotate: `${player.facing - Math.PI / 2}rad` }],
         }}
       >
         <Image
